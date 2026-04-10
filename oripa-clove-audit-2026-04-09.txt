@@ -1,0 +1,300 @@
+Cloveオリパ UX / Performance Audit
+Date: 2026-04-09
+Target: https://oripa.clove.jp/oripa/All
+
+Overview
+- Playwright MCP と Chrome DevTools MCP を使って desktop / mobile の導線確認、Lighthouse、performance trace、console/network の確認を行った。
+- 1回ガチャの導線については、ユーザー意図として「お試し用」で問題ない前提のため、改善対象から外す。
+
+Observed Metrics
+- Field data: LCP 3550ms / INP 419ms / CLS 0.41
+- Lab trace: LCP 1433ms / CLS 0.55
+- Lighthouse (mobile): Accessibility 82 / Best Practices 54 / SEO 100
+
+Key Findings
+1. 表示の安定性が悪い
+- 読み込み中に上部の要素と商品一覧が動き、CLS が高い。
+- 最大の shift cluster は約 1851ms-2851ms に発生していた。
+
+2. LCP 画像の発見が遅い
+- ファーストビューの主役となる商品画像がブラウザに遅れて認識されている。
+- DevTools 上では、LCP 要素の画像に fetchpriority=high がなく、lazy load 扱いで、初期 HTML での discoverability も低かった。
+- LCP 画像リクエストは約 1231ms に開始されていた。
+
+3. third-party の負荷が大きい
+- 転送量の大きいもの:
+  - GTM 4.8MB
+  - TikTok 1.7MB
+  - channel.io 1.5MB
+  - Facebook 1.4MB
+- main thread 負荷の大きいもの:
+  - GTM 278ms
+  - Facebook 179ms
+  - channel.io 142ms
+
+4. mobile のカテゴリ導線が弱い
+- カテゴリ tablist は横スクロールが必要。
+- 実測: clientWidth 375 / scrollWidth 760
+- 初期表示だけだと「横に続く」ことが分かりにくい。
+
+5. 検索と絞り込みの探索性が弱い
+- 検索結果で似た商品が並ぶが、件数やまとまりが見えにくい。
+- 絞り込みモーダルに件数表示、検索、推奨 facet などがなく、選択コストが高い。
+
+6. アクセシビリティの基本欠落
+- header のロゴリンクに accessible name がない。
+- menu button に accessible name がない。
+- hidden iframe に title がない。
+- main landmark も不足している。
+
+7. 色コントラスト不足
+- inactive tab で約 1.87:1
+- badge 系で約 2.31:1 / 2.8:1
+
+8. console / network エラーが多い
+- GTM 系の 503 / CORS
+- channel.io 403
+- Uncaught [object Object]
+- Meta Pixel warnings
+
+CLS Deep Dive
+- layout-shift observer を仕込んで mobile 初期表示時の shift source を確認した。
+- 具体的な発生源は次の通り。
+
+1. キャンペーンバナー領域
+- Source: div.css-l4q0qc
+- 赤い訴求帯の下にあるバナーカルーセル領域。
+- 約 571ms 時点で y=66 から y=100 に移動していた。
+
+2. タブ + 絞り込み + 商品一覧コンテナ
+- Source: div.chakra-tabs.css-1xpribl
+- 約 571ms 時点で y=208.7 から y=242.7 に押し下げられていた。
+
+3. 商品一覧の loading skeleton
+- Source: div.chakra-stack.css-1mtsw8a
+- 子要素: div.chakra-skeleton.css-19729r6
+- 約 1382ms 時点の大きな shift が、CLS の大半を占めていた。
+- 計測上、この skeleton 群の shift contribution は約 0.536 / 0.578。
+
+Interpretation of CLS Cause
+- skeleton の存在自体が問題ではなく、placeholder の高さ・構造と実カードの高さ・構造が一致していない可能性が高い。
+- 上部バナーの高さ確定も下方向の押し下げに影響している。
+- 体感としては「上の帯が落ち着かず、その後にカード一覧が置き換わってさらに動く」状態。
+
+Likely Fixes
+1. バナー領域の高さを事前に予約する
+- カルーセル外枠に fixed height, min-height, aspect-ratio のいずれかを持たせる。
+
+2. 商品カード skeleton を実カード寸法に合わせる
+- 画像枠、バッジ行、残数行、CTA 行まで含めて同じレイアウト骨格にする。
+- 単純な灰色ブロックではなく、完成形と同じ高さ配分に寄せる。
+
+3. 画像に明示的なサイズ予約を入れる
+- width / height または aspect-ratio を持たせる。
+- ファーストビュー画像では lazy load を見直し、必要なら fetchpriority=high を付ける。
+
+4. 可能ならファーストビューの数件を SSR する
+- 初期表示だけでも実カードをそのまま出せれば、skeleton 置き換えによる CLS をかなり抑えられる。
+
+Recommended Priority
+1. skeleton と実カードの高さ不一致を解消する
+2. バナーカルーセルの高さを先に確定させる
+3. LCP 画像の発見を早める
+4. third-party を遅延読込または整理する
+
+Conclusion
+- このページの大きな UX 問題は「遅さ」だけではなく「初期表示の不安定さ」にある。
+- 特に CLS は、上部バナーと商品一覧 skeleton の置き換えでほぼ説明できる。
+- そのため、実装側で十分改善可能な余地が大きい。
+
+Backend / Network Deep Dive
+- backend 寄りの観点で、初回ロード時の document、GraphQL、same-origin asset request を確認した。
+
+1. 初回ロードの主要 first-party request
+- document: https://oripa.clove.jp/oripa/All
+- GraphQL 1: https://api.prd.oripa.clove.jp/graphql
+  - operationName: newUserOripas
+- GraphQL 2: https://api.prd.clove.jp/graphql
+  - operationName: CampaignBanners
+- GraphQL 3: https://api.prd.oripa.clove.jp/graphql
+  - operationName: orderedOripasWithPagination
+
+2. document が public ページなのに no-store
+- Response header:
+  - cache-control: private, no-cache, no-store, max-age=0, must-revalidate
+  - x-vercel-cache: MISS
+  - x-powered-by: Next.js
+- __NEXT_DATA__ 上では gssp=true。
+- ただし pageProps に入っていたのは主に次だけだった。
+  - _nextI18Next
+  - jsonLdData
+  - oripaMyHeadInfo
+  - params
+  - tags
+- pageProps に campaignBanners や oripas は入っておらず、肝心の商品一覧は client-side GraphQL に依存している。
+
+3. HTML payload も軽くない
+- HTML response size: 200325 bytes
+- __NEXT_DATA__ size: 108972 bytes
+- __NEXT_DATA__ 内訳:
+  - _nextI18Next: 88154 bytes
+  - jsonLdData: 13725 bytes
+  - tags: 8320 bytes
+- _nextI18Next の ja namespace 内訳:
+  - oripa: 58621 bytes
+  - common: 29410 bytes
+- つまり、初期 HTML は public data を十分に持たない一方で、翻訳と SEO data でかなり太っている。
+
+4. 初回ロードの public GraphQL が 3本に分かれている
+- 3本とも未ログインの公開ページで使われていた。
+- GraphQL request header には cookie や authorization が乗っていなかった。
+- それにもかかわらず、少なくとも current setup では CDN cache を積極活用しにくい構成になっている。
+- 確認できた response size:
+  - newUserOripas: 40043 bytes
+  - CampaignBanners: 2251 bytes
+  - orderedOripasWithPagination: 116699 bytes
+- 3本合計: 158993 bytes
+- HTML と合わせると、初期の first-party data payload だけで約 359318 bytes ある。
+
+5. list API が一覧用途としては overfetch
+- orderedOripasWithPagination:
+  - 30 nodes
+  - totalCount: 792
+  - response size: 116699 bytes
+  - video path count: 347
+  - thumbnail URL count: 111
+  - tag translation field count: 635
+- video を除いただけで:
+  - 116699 -> 57524 bytes
+  - 約 59175 bytes 削減
+- さらに thumbnail を ja 1枚、tag title を ja のみに寄せると:
+  - 116699 -> 35301 bytes
+  - 約 81398 bytes 削減
+- 一覧カード用の slim shape に落とすと:
+  - 116699 -> 19138 bytes
+  - 約 97561 bytes 削減
+
+6. new user list も同じく overfetch
+- newUserOripas:
+  - 10 nodes
+  - response size: 40043 bytes
+  - video path count: 112
+  - thumbnail URL count: 40
+  - tag translation field count: 225
+- video を除いただけで:
+  - 40043 -> 20884 bytes
+  - 約 19159 bytes 削減
+- slim shape に落とすと:
+  - 40043 -> 7038 bytes
+  - 約 33005 bytes 削減
+
+7. 一覧 API に含まれている重い項目
+- video.videoData
+  - 一覧カード表示に不要なのに、grade ごとの m3u8 path 群まで返している。
+- multilingual thumbnail
+  - ja page でも en / ko / zh-TW など複数 locale 分の URL を返している。
+- cachedTags の多言語 title 一式
+  - ja page でも titleEn / titleZhTw / titleZhCn / titleKo を返している。
+- subImages や細かい詳細系 field
+  - 一覧ファーストビューの card 表示には不要な可能性が高い。
+
+8. same-origin asset request に cookie が大量に乗る
+- browser 上の document.cookie は約 2856 bytes、約 57 cookie。
+- same-origin の _next/static request にも marketing 系 cookie を含む大きな Cookie header が載っていた。
+- static asset 自体は Vercel cache HIT で、cache-control: public,max-age=31536000,immutable だった。
+- つまり asset cache は効いているが、request header はまだ重い。
+
+9. backend 寄りの改善候補
+- public landing page の first-view data を SSR / ISR / edge cache へ寄せる
+  - 少なくとも campaignBanners と first page の orderedOripas は SSR か BFF でまとめて返したい。
+- public GraphQL を POST のまま生で叩かず、GET persisted query または BFF endpoint に寄せる
+  - operation + variables 単位で CDN cache を掛けやすくなる。
+- 一覧用と詳細用で GraphQL shape を分ける
+  - 一覧では video.videoData、全 locale thumbnail、全 locale tag title を返さない。
+- locale-aware shaping を徹底する
+  - ja page では ja の thumbnail / tag title のみ返す。
+- translation payload を削る
+  - 初回に必要な namespace / key のみに絞るか、後段読み込みに分ける。
+- cookie scope を狭める
+  - marketing cookie を apex domain に広くぶら下げず、必要な host / path に限定する。
+  - 可能なら static asset を cookieless host で返す。
+- anonymous page では不要な third-party boot を抑制する
+  - 例: channel.io boot 403 を未ログイン landing では起動しない。
+
+10. backend engineer 向けに優先度を付けるなら
+- 1位: orderedOripasWithPagination / newUserOripas の response shape 最適化
+- 2位: public page data の SSR / edge cache 化
+- 3位: GraphQL の persisted query 化または BFF 集約
+- 4位: cookie scope の整理
+- 5位: translation payload と SEO payload の再設計
+
+Logged-in Session Differences
+- Playwright セッションでログイン後の動作を確認した。
+- ヘッダーは `会員登録/ログイン` から `20 pt` と `user icon` に変化していた。
+- Cookie 上でも認証済み状態を確認できた。
+  - oripa-user-rank=Beginner
+  - oripa-user-buy-point=0
+  - clove-id が空でない
+  - clove-refresh が空でない
+
+1. GraphQL は cookie auth ではなく Authorization Bearer を使用
+- ログイン後の GraphQL request header に Authorization: Bearer ... が入っていた。
+- 一方で、未ログイン時に確認した GraphQL request には cookie はなく、auth header もなかった。
+- つまり frontend が JS から token を読んで GraphQL に付与している構成とみられる。
+
+2. auth token が JS から読める
+- browser 上で document.cookie から clove-id / clove-refresh を参照できた。
+- 計測:
+  - document.cookie total: 6059 bytes
+  - cookie count: 62
+  - clove-id length: 1238 bytes
+  - clove-refresh length: 204 bytes
+- 未ログイン時の document.cookie は約 2856 bytes / 約 57 cookie だったため、ログイン後はさらに大きくなる。
+- 少なくとも oripa.clove.jp 上の JS から token が読めるため、XSS 時のリスクが高い。
+
+3. client-side route change でも Next data は no-store
+- ログイン後に category tab を切り替えた際、/_next/data/.../oripa/All.json を取得していた。
+- response header:
+  - cache-control: private, no-cache, no-store, max-age=0, must-revalidate
+  - x-vercel-cache: MISS
+- ただし __NEXT_DATA__ / pageProps の keys 自体は未ログイン時と同じで、主に translation と meta data のみだった。
+- つまり route shell 的な JSON は取っているが、一覧の本体 data は別 fetch に依存している。
+
+4. ログイン後も一覧 GraphQL の shape は重いまま
+- sort を `高い順` に切り替えた際、orderedOripasWithPagination が再取得された。
+- request variables の sort は PRICE_DESC。
+- response には未ログイン時と同じく重い field 群が含まれていた。
+  - thumbnail の多言語 URL
+  - cachedTags の多言語 title
+  - video.videoData
+- さらに、ログイン後は personalized field が実値を持つようになっていた。
+  - userDrawCountForLimit: 0
+  - requiredRankName: Legend / Master など
+  - isDemoGachaDisabled: true
+
+5. rank-limited item で追加の per-item check が走る
+- sort 後の上位商品に rank-limited item が出ると、追加で canAccessLimitedOripa query が発行された。
+- 観測した query:
+  - operationName: canAccessRankLimitedOripa
+  - variables.id: 対象 oripa ID
+- response:
+  - canAccess=false
+  - __typename=IsInvalidRank
+- UI 上では `Legendランク以上限定のため引けません` / `Masterランク以上限定のため引けません` と表示された。
+- この構成だと rank-limited item が増えるほど per-item check が増えるため、一覧で N+1 的な API 負荷になりやすい。
+
+6. login 後は tracking payload も重くなる
+- ログイン後の network では、Meta 系 request に hashed email / phone / external_id など user data 相当の payload が含まれていた。
+- これは performance だけでなく privacy / compliance / data governance の観点でも見直し余地がある。
+
+Logged-in Backend Recommendations
+- 1. auth token を JS-readable cookie に置かない
+  - 少なくとも access token は HttpOnly / Secure / SameSite を基本に再設計したい。
+- 2. GraphQL auth を BFF で終端する
+  - browser から直接 bearer token を各 API に投げる構成より、BFF 経由の方が安全性と制御性が高い。
+- 3. orderedOripasWithPagination に access state を内包する
+  - canAccessLimitedOripa を item ごとに追加 call せず、一覧 query の response に access status / rank requirement を含める。
+- 4. logged-in 用 list query も slim shape に分割する
+  - personalized field は残しつつ、video と多言語 field は一覧から外す。
+- 5. tracking への user data 送出を棚卸しする
+  - 特に logged-in 後だけ有効になる送信先と payload は明示的に精査したい。

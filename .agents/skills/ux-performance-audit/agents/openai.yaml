@@ -1,0 +1,4 @@
+interface:
+  display_name: "UX / 性能監査"
+  short_description: "Playwright MCP 中心の UIUX 監査"
+  default_prompt: "Use $ux-performance-audit to audit a site with Playwright MCP and Chrome DevTools MCP for UI/UX and performance improvements."

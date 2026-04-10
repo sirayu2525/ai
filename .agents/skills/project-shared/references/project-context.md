@@ -17,3 +17,5 @@
 - `SKILL.md` は導線とワークフロー説明に集中させる。
 - 同梱 script は、繰り返し作業を減らすか、ミスを減らせるときだけ追加する。
 - ツール要件がない限り、同じルールを `CLAUDE.md`、`SKILL.md`、他のラッパーに重複して書かない。
+- ブラウザや Web サイトの解析では `.agents/skills/browser-analysis/` を優先して使う。
+- performance や UI/UX の改善提案では `.agents/skills/ux-performance-audit/` を優先して使う。

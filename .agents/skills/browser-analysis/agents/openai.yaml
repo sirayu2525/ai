@@ -1,0 +1,4 @@
+interface:
+  display_name: "ブラウザ解析"
+  short_description: "Chrome DevTools MCP での調査フロー"
+  default_prompt: "Use $browser-analysis to investigate a site with Chrome DevTools MCP and summarize the findings clearly."

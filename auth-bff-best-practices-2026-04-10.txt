@@ -1,0 +1,253 @@
+認証 / BFF ベストプラクティス整理
+日付: 2026-04-10
+
+目的
+このメモは、今回の監査会話で整理した認証、トークン管理、セッション管理、BFF に関するベストプラクティスをまとめたものです。
+first-party の Web アプリを前提にした、一般的な設計メモです。
+
+結論
+first-party の Web アプリでは、基本的に次の方向が望ましいです。
+
+- ブラウザは first-party の BFF / app server とだけ通信する
+- ブラウザ JavaScript に、再利用可能な bearer credential を極力持たせない
+- 認証状態は HttpOnly な session cookie、またはそれに近い server 主導の仕組みで扱う
+- upstream の access token / refresh token は server 側で管理する
+
+これは「cookie なら安全」という意味ではありません。
+より正確には、「価値の高い認証情報を browser JavaScript に晒さない方がよい」という整理です。
+
+BFF とは何か
+BFF は Backend for Frontend の略です。
+製品名でも、Next.js 固有の機能でもなく、役割を表すアーキテクチャ概念です。
+
+BFF が担うことが多い責務:
+
+- upstream API と auth token を browser から隠す
+- 複数 backend call を frontend 向けにまとめる
+- UI に都合のよい response shape に整形する
+- 画面単位の cache をかける
+- 初回表示で SSR を引き受ける
+- 並び替え、絞り込み、ページングなどでは JSON を返す
+
+BFF はどの技術でも作れます。
+
+- Next.js
+- Node.js / Express / NestJS
+- Go
+- Rails
+- Laravel
+- Spring Boot
+- Edge Functions / Workers
+
+大事なのはフレームワークではなく、「browser と core backend API の間に first-party の server 境界を置くこと」です。
+
+Browser に何を持たせるべきか
+Web アプリでは、ログイン状態を維持する以上、browser に何らかの識別子を持たせる必要があります。
+ベストプラクティスは「browser に何も持たせない」ことではありません。
+ベストプラクティスは「再利用価値の高い認証情報を browser JavaScript に見せない」ことです。
+
+優先したいもの:
+
+- opaque な session cookie
+- HttpOnly
+- Secure
+- SameSite
+
+避けたいもの:
+
+- refresh token の localStorage 保存
+- refresh token の JS-readable cookie 保存
+- access token の localStorage 保存
+- access token の JS-readable cookie 保存
+
+JS から読める token が危険な理由
+token を JavaScript から読めるなら、XSS や壊れた third-party script が入ったときに、その token を外部へ持ち出される可能性があります。
+
+重要なのは次の差です。
+
+- JavaScript が token を読める:
+  token 文字列そのものを抜いて、別環境から再利用しやすい
+- HttpOnly cookie:
+  JavaScript は raw 値を読めない
+  ただし、その browser 上で勝手に request を打たれること自体は防げない
+
+つまり HttpOnly は XSS の完全対策ではありません。
+主に「token の直接窃取と replay」を減らすための対策です。
+
+Access Token と Refresh Token の違い
+access token:
+
+- 今この瞬間に API を叩くための token
+- 通常は短寿命
+- 1回だけ盗まれた場合、被害は有効期限までに限定されやすい
+- ただし攻撃者が継続的に盗めるなら長期悪用されうる
+
+refresh token:
+
+- 新しい access token を作るための token
+- 価値が高い credential
+- 1回盗まれただけでも、expiry、revoke、logout、rotation まで継続利用されうる
+
+なので整理すると:
+
+- access token 流出も十分にまずい
+- refresh token 流出の方が通常はさらに重い
+
+JWT について
+一般的な JWT は「署名付き」であって「暗号化済み」ではありません。
+つまり:
+
+- token 文字列が分かれば、中の claim は読めることが多い
+- signature は改ざん検知のためのもので、秘匿のためのものではない
+
+そのため、browser から読める場所に JWT を置くのは、「見た目が難読化されているだけ」で安全とは言えません。
+
+Access Token をメモリ保持するとは何か
+ここでいう「メモリ保持」は、token を current tab の JavaScript 実行メモリにだけ持つことです。
+たとえば次のような場所です。
+
+- module 変数
+- React state / context
+- 永続化しない store
+
+特徴:
+
+- reload で消える
+- tab を閉じると消える
+- browser 再起動でも残らない
+
+もちろん XSS があれば、その瞬間の token は読まれえます。
+ただし localStorage や JS-readable cookie よりは、残り続けないぶん replay しにくくなります。
+
+別タブから盗まれるのか
+in-memory の access token は、通常は別タブから直接は読めません。
+各タブは別の JavaScript 実行コンテキストを持つからです。
+
+ただし、次の条件では別の形で悪用される可能性があります。
+
+- 同一 origin の別ページで XSS が起きる
+- tab 間共有を unsafe に実装している
+- 既存の認証状態を使って攻撃者が authenticated action を起こせる
+
+つまり、in-memory 保持は localStorage よりかなりましですが、完全防御ではありません。
+
+Session Cookie パターン
+server 主導の典型構成は次の形です。
+
+1. user がログインする
+2. server が opaque な session ID を発行する
+3. server は session 状態を Redis や DB に保存する
+4. browser に次のような cookie を返す
+   sid=<opaque-random-value>; HttpOnly; Secure; SameSite=Lax; Path=/
+5. browser は以後の request で自動的に cookie を送る
+6. BFF / app server が session を引いて downstream call を行う
+
+重要なのは、browser が持つのは session identifier だけで、upstream bearer token 自体ではないことです。
+
+HttpOnly な Access Token Cookie と Session Cookie の違い
+access token を HttpOnly cookie に入れるのは、JS-readable にするよりかなり良いです。
+ただし session cookie と完全に同じではありません。
+
+session cookie の方がきれいな理由:
+
+- session cookie は first-party server の中でしか意味を持たないことが多い
+- upstream bearer token を server 側に閉じ込められる
+- revoke、logout、device 単位管理がしやすい
+- browser は first-party の session 境界だけを扱えばよい
+
+なので:
+
+- HttpOnly access token cookie は良い改善
+- ただし first-party Web では、BFF + opaque session cookie の方がより整理された設計になりやすい
+
+フル BFF 化がすぐ無理な場合の現実解
+もし一気に BFF + session model に移れないなら、現実的な中間案は次です。
+
+- refresh token は HttpOnly cookie に移す
+- access token は短寿命にする
+- access token はメモリ保持に寄せる
+- 可能な通信から順に first-party endpoint 経由へ寄せる
+
+これはフル BFF よりは妥協ですが、JS-readable な refresh/access token よりは明確に改善です。
+
+BFF が返すのは HTML か JSON か
+BFF は HTML しか返さないわけではありません。
+むしろ用途に応じて使い分けるのが自然です。
+
+典型的な形:
+
+- 初回表示:
+  server が upstream API を叩いて SSR HTML を返す
+- 以降の操作:
+  browser が first-party JSON endpoint を叩いて、sort、filter、pagination を更新する
+
+つまり:
+
+- 初回は SSR と cache を活かす
+- 2回目以降は full reload を避ける
+
+ここで大事なのは「常に HTML を返すこと」ではなく、「browser が core API を直接叩かず、first-party server 境界を通ること」です。
+
+実務上の改善優先順位
+優先度 1:
+
+- refresh token を browser JavaScript から見えないようにする
+- refresh / session 処理を HttpOnly cookie に寄せる
+
+優先度 2:
+
+- browser に bearer token を直接扱わせる構成を減らす
+- BFF 管理の session flow に寄せる
+
+優先度 3:
+
+- browser の通信先を direct core API から first-party endpoint に寄せる
+- auth、aggregation、payload shaping、cache を server 側に寄せる
+
+優先度 4:
+
+- 一覧系 payload を画面用途に合わせて slim にする
+- access 判定や補助データを main response に寄せる
+- item ごとの follow-up request を減らす
+
+優先度 5:
+
+- CSP を強化する
+- third-party script を見直す
+- cookie-based auth に合わせて CSRF 対策も揃える
+
+実務上のターゲット構成
+この種のサイトで目指しやすい形:
+
+- Browser
+  - first-party endpoint だけ叩く
+  - opaque な session cookie だけ持つ
+
+- BFF / app server
+  - session を認証する
+  - session store を読む
+  - upstream token を管理する
+  - GraphQL / internal API を叩く
+  - 初回表示では必要に応じて HTML を返す
+  - 以降の操作では JSON を返す
+
+- Core backend APIs
+  - domain behavior に集中する
+  - 共通 API として振る舞う
+  - 一般的な UI flow では browser に直接晒さない
+
+まとめ
+一般的な first-party Web アプリに対する大きな方向性は次の通りです。
+
+- browser 管理の bearer auth から離れる
+- first-party BFF 境界を強くする
+- browser-visible な auth state を最小化する
+- JS-readable token より HttpOnly session cookie を優先する
+
+この方向に寄せることで、次が改善しやすくなります。
+
+- token theft 耐性
+- frontend の単純さ
+- payload の最適化
+- cache 戦略
+- 画面単位の最適化余地
