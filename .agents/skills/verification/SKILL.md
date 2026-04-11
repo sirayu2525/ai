@@ -1,0 +1,45 @@
+---
+name: verification
+description: 変更内容や仮説を検証するための基本 Skill。テスト、ビルド、目視確認、手動操作確認など、最小限で有効な確認を選ぶ。
+---
+
+# Verification
+
+## 概要
+
+変更後の挙動や、調査から導いた仮説を検証するための基本 Skill です。最小限で有効な確認から始め、必要なら広げます。
+
+この Skill の主責務は「確認を実行して、その結果を証拠として返す」ことです。設計や品質の総合評価は `review` に寄せます。
+
+## クイックスタート
+
+- 最初に `../../../AGENTS.md` を読む。
+- stable なルール確認のために `../../../RULES.md` を読む。
+- current truth の確認のために `../../../WORKING-CONTEXT.md` を読む。
+- 何を確認したいか、どこまで保証したいかを整理する。
+- `references/verification-workflow.md` を読んで、確認の順番と報告の仕方を揃える。
+
+## 基本フロー
+
+1. 確認したいポイントと、必要な信頼度を整理する。
+2. 最も狭く有効な確認から始める。
+3. 問題が残るなら、範囲を広げて追加確認する。
+4. 実施した確認と、未実施の確認を分けて伝える。
+
+## リソース
+
+### `../../../AGENTS.md`
+
+このリポジトリ全体の前提と workflow surface policy を確認する。
+
+### `../../../RULES.md`
+
+stable な rules を確認する。
+
+### `../../../WORKING-CONTEXT.md`
+
+current truth を確認する。
+
+### `references/verification-workflow.md`
+
+確認観点、優先順位、結果のまとめ方を確認する。

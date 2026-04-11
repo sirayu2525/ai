@@ -1,4 +1,0 @@
-interface:
-  display_name: "プロジェクト実装"
-  short_description: "実装・検証の repo 固有フロー"
-  default_prompt: "Use $implementation to このリポジトリの実装・検証の進め方と quality bar を適用する。"

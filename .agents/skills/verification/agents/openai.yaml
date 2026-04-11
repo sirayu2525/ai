@@ -1,0 +1,4 @@
+interface:
+  display_name: "検証"
+  short_description: "確認と品質ゲートの基本フロー"
+  default_prompt: "Use $verification to 変更内容や仮説を検証し、実施した確認と未実施の確認を整理する。"

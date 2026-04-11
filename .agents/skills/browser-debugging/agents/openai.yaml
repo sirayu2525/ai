@@ -1,0 +1,4 @@
+interface:
+  display_name: "ブラウザ原因調査"
+  short_description: "Chrome DevTools MCP を使った不具合調査"
+  default_prompt: "Use $browser-debugging to ブラウザ上の症状を再現し、console、network、DOM、performance から原因を調べる。"

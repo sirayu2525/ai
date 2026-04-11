@@ -1,0 +1,4 @@
+interface:
+  display_name: "画面フロー確認"
+  short_description: "Playwright MCP を使った UI 操作確認"
+  default_prompt: "Use $web-flow-inspection to 実際の画面遷移やフォーム操作を確認し、UI 上の違和感や詰まりを整理する。"

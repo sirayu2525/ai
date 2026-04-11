@@ -7,6 +7,7 @@
 - repo-wide の前提やルールを変えるときは、skill より先に `AGENTS.md` / `RULES.md` / `WORKING-CONTEXT.md` を更新する。
 - skills は task-specific かつ reusable な workflow に絞る。
 - 前提、トレードオフ、残るリスクを明示する。
+- ユーザーの依頼内容と、適用した skill / pipeline の既定フローにズレがある場合は、その差分を出力で明示する。
 
 ## Must Never
 
@@ -21,14 +22,19 @@
   - repo-wide の前提
   - stable rules
   - current truth
-- skills:
-  - 特定用途の workflow
-  - domain knowledge
+- basic skills:
+  - 再利用できる基本能力
+  - 単一責務寄りの workflow
   - task-specific references
+- pipelines:
+  - よく使う依頼の組み合わせ
+  - basic skills をまとめる入口
+  - 人間が頼みやすい粒度
 
 ## Current Skill Policy
 
-- `implementation` は実装と検証の workflow を持つ。
-- `code-review` は既存差分のレビュー workflow を持つ。
-- `browser-analysis` と `ux-performance-audit` は Web 解析系を持つ。
+- `skills` は小さめで再利用しやすい基本能力として保つ。
+- `pipelines` はよく使うユースケースをまとめる。
+- 通常は pipeline を入口にし、必要なら basic skill を直接組み合わせる。
+- 既定フローよりユーザーの指示を優先する場合も、何を変えたかは明示する。
 - repo 全体の抽象的な考え方は root docs に集約する。

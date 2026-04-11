@@ -1,0 +1,4 @@
+interface:
+  display_name: "作成"
+  short_description: "成果物を作るための基本フロー"
+  default_prompt: "Use $creation to 必要な成果物を作成または更新する。"

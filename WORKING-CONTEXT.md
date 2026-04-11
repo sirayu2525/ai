@@ -5,7 +5,7 @@ Last updated: 2026-04-12
 ## Purpose
 
 Claude Code と Codex で共有する AI scaffold。  
-repo-wide の前提と current truth は root docs に置き、skills は task-shaped な workflow surface に保つ。
+repo-wide の前提と current truth は root docs に置き、basic skills と pipelines を分けて保つ。
 
 ## Current Truth
 
@@ -15,11 +15,18 @@ repo-wide の前提と current truth は root docs に置き、skills は task-s
   - `WORKING-CONTEXT.md`
 - Claude Code project memory:
   - `CLAUDE.md`
-- active skills:
-  - `.agents/skills/implementation/`
-  - `.agents/skills/code-review/`
-  - `.agents/skills/browser-analysis/`
-  - `.agents/skills/ux-performance-audit/`
+- active basic skills:
+  - `.agents/skills/research/`
+  - `.agents/skills/creation/`
+  - `.agents/skills/verification/`
+  - `.agents/skills/review/`
+  - `.agents/skills/browser-debugging/`
+  - `.agents/skills/web-flow-inspection/`
+- active pipelines:
+  - `.agents/pipelines/implementation/`
+  - `.agents/pipelines/code-review/`
+  - `.agents/pipelines/browser-analysis/`
+  - `.agents/pipelines/ux-performance-audit/`
 
 ## Update Rule
 

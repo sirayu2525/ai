@@ -1,0 +1,4 @@
+interface:
+  display_name: "レビュー"
+  short_description: "既存成果物を評価する基本フロー"
+  default_prompt: "Use $review to 既存の変更や成果物をレビューし、問題点と残るリスクを整理する。"

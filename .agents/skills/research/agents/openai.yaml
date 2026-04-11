@@ -1,0 +1,4 @@
+interface:
+  display_name: "調査"
+  short_description: "調査と事実整理の基本フロー"
+  default_prompt: "Use $research to 対象を調べ、事実と仮説を分けて整理し、必要なら理解を深める補足知識も添える。"
