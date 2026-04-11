@@ -20,13 +20,15 @@ repo-wide の前提、考え方、判断基準はこのファイルと `RULES.md
   - `RULES.md`
   - `WORKING-CONTEXT.md`
 - task-specific workflow:
-  - `.agents/skills/project-delivery/`
+  - `.agents/skills/implementation/`
+  - `.agents/skills/code-review/`
   - `.agents/skills/browser-analysis/`
   - `.agents/skills/ux-performance-audit/`
 
 ## Skill Routing
 
-- 実装、検証、コードレビューが中心なら `project-delivery`
+- 実装や検証が中心なら `implementation`
+- 既存差分のレビューが中心なら `code-review`
 - ブラウザ解析なら `browser-analysis`
 - performance / accessibility / UIUX 監査なら `ux-performance-audit`
 

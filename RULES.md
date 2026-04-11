@@ -13,7 +13,7 @@
 - repo 全体の前提や current truth を 1つの skill に抱え込まない。
 - 実装が不要な依頼で、無理にコード変更へ進めない。
 - 同じルールを `README.md`、`CLAUDE.md`、skill の reference に重複して散らさない。
-- task-specific ではない抽象的な思想を、implementation workflow として書かない。
+- task-specific ではない抽象的な思想を、skill workflow として書かない。
 
 ## Skill Design
 
@@ -28,6 +28,7 @@
 
 ## Current Skill Policy
 
-- `project-delivery` は実装、検証、レビューの workflow を持つ。
+- `implementation` は実装と検証の workflow を持つ。
+- `code-review` は既存差分のレビュー workflow を持つ。
 - `browser-analysis` と `ux-performance-audit` は Web 解析系を持つ。
 - repo 全体の抽象的な考え方は root docs に集約する。

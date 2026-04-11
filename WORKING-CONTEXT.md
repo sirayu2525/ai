@@ -16,12 +16,13 @@ repo-wide の前提と current truth は root docs に置き、skills は task-s
 - Claude Code project memory:
   - `CLAUDE.md`
 - active skills:
-  - `.agents/skills/project-delivery/`
+  - `.agents/skills/implementation/`
+  - `.agents/skills/code-review/`
   - `.agents/skills/browser-analysis/`
   - `.agents/skills/ux-performance-audit/`
 
 ## Update Rule
 
-- このファイルには current truth と active な構成判断だけを書く。
+- このファイルには current truth と現在有効な構成情報だけを書く。
 - 長期的な不変ルールは `RULES.md` へ寄せる。
 - 抽象的な考え方は `AGENTS.md` に寄せる。

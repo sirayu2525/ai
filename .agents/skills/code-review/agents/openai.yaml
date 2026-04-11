@@ -1,0 +1,4 @@
+interface:
+  display_name: "コードレビュー"
+  short_description: "差分レビューの repo 固有フロー"
+  default_prompt: "Use $code-review to このリポジトリのコードレビュー観点と report format を適用する。"

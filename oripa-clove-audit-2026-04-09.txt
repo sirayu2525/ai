@@ -6,6 +6,50 @@ Overview
 - Playwright MCP と Chrome DevTools MCP を使って desktop / mobile の導線確認、Lighthouse、performance trace、console/network の確認を行った。
 - 1回ガチャの導線については、ユーザー意図として「お試し用」で問題ない前提のため、改善対象から外す。
 
+Final Summary
+1. 初期表示の CLS が高い
+問題:
+- 商品一覧 skeleton と実カードの高さ・構造が一致していない可能性が高い。
+対応:
+- 商品カード skeleton を実カードと同じ寸法・構造に合わせる。
+
+2. ファーストビュー画像の表示開始が遅い
+問題:
+- LCP 対象になりうる商品画像が lazy load 扱いで、ブラウザに遅れて認識されている。
+- 画像読み込み前の領域予約が弱いと、LCP だけでなく CLS にも影響する。
+対応:
+- ファーストビューの商品画像は lazy load を避け、必要に応じて fetchpriority=high を付ける。
+
+3. list API の責務が広く、payload と追加 request が増えている
+問題:
+- 一覧表示に不要な video.videoData や詳細用 field が response に含まれている。
+- video 本体ではなく metadata だが、m3u8 URL が大量に入り、一覧 API の payload を大きくしている。
+- ランク限定判定の canAccessLimitedOripa が item ごとの追加 request になっており、N+1 的な API 発火になりやすい。
+対応:
+- list API はカード表示に必要な最小 field に絞る。
+- videoなどは詳細 API または draw API 側へ寄せる。
+- 無料1回ガチャ / 1回ガチャの押下時に draw API を呼び、その response で今回再生すべき videoSrc を返す。
+- canAccessLimitedOripa は item ごとの追加 request ではなく、list API の各 item に canAccess / accessStatus として含める。
+
+4. 検索モーダルで loading 中に「検索結果なし」が表示される
+問題:
+- 検索結果を取得している最中に「検索結果が見つかりませんでした」が表示されることがある。
+- 実際には結果が返ってくるため、loading state と empty state が混ざっている。
+- ユーザーは「結果なし」と誤認しやすく、検索体験が不安定に見える。
+対応:
+- query 変更直後は loading state を表示し、response が返るまで empty state を出さない。
+- empty state は `loading === false && hasSearched === true && results.length === 0` のときだけ表示する。
+- 検索中 / 結果あり / 結果なし の 3 状態を UI 上で明確に分ける。
+
+5. refresh token が browser JavaScript から見える
+問題:
+- refresh token は長期的な access token 再発行に使えるため、JS-readable cookie に置くべきではない。
+- browser が直接 bearer token を扱う構成だと、XSSのリスクが高い。
+対応:
+- refresh / session 処理を HttpOnly / Secure / SameSite cookie に寄せる。
+- session ID + BFF(Backend for Frontend) の構成に移行する。
+- browser から直接 bearer token を扱わせず、BFF 側で認証状態と upstream token を管理する。
+
 Observed Metrics
 - Field data: LCP 3550ms / INP 419ms / CLS 0.41
 - Lab trace: LCP 1433ms / CLS 0.55
@@ -298,3 +342,118 @@ Logged-in Backend Recommendations
   - personalized field は残しつつ、video と多言語 field は一覧から外す。
 - 5. tracking への user data 送出を棚卸しする
   - 特に logged-in 後だけ有効になる送信先と payload は明示的に精査したい。
+
+Other Screens Audit
+Date: 2026-04-10
+Scope:
+- 商品詳細ページ
+- 検索モーダル
+- 会員登録 / ログイン / パスワード再設定
+- お試しガチャ導線
+
+Note:
+- 有償の 1回ガチャ / 10連ガチャは副作用があるため実行していない。
+- お試しガチャは「ポイント消費なし、商品獲得なし」と明示されていたため確認対象に含めた。
+
+1. 商品詳細ページの relatedOripas が一覧と同じく太い
+問題:
+- 詳細ページ本体は SSR で oripa data を __NEXT_DATA__ に持っており、pageProps.oripa は約 15KB で大きすぎる状態ではなかった。
+- 一方で、関連オリパ欄は relatedOripas GraphQL を後追いで取得していた。
+- relatedOripas の query は OripaLabelFields を使っており、関連カード表示に不要な field が含まれていた。
+  - video.id / video.title / video.videoData / video.deleted
+  - thumbnail の複数 locale
+  - cachedTags の titleJa / titleEn / titleZhTw / titleZhCn / titleKo
+  - subImages
+- つまり、一覧 API だけでなく、詳細ページ下部の関連カードでも同じ overfetch が起きている。
+
+対応:
+- relatedOripas は related card 専用の slim fragment に分離する。
+- 関連カードに必要な field は id, name, thumbnail(selected locale), price, quantity, remaining, badges(selected locale), draw button state 程度に絞る。
+- videoData は関連カードから外し、詳細ページ遷移後または draw/demo 押下時に取得する。
+
+2. 商品詳細ページは画像枚数が多い
+問題:
+- 詳細ページで document.images は 50 件確認された。
+- ファーストビュー付近だけでもメイン画像、上位賞品画像、coin 画像など複数画像が並ぶ。
+- メイン商品画像は大きく、確認時の transferSize は約 202KB だった。
+- ファーストビュー内の賞品画像も loading=lazy のまま表示領域に入っていた。
+
+対応:
+- メイン商品画像は LCP 候補として priority / fetchpriority を明示する。
+- 賞品一覧は fold 付近に入るものだけ先読みし、それ以外は lazy を徹底する。
+- 「すべてを表示」配下の賞品画像は初期 load から外し、展開時に読み込む。
+- 画像の width / height / aspect-ratio を明示し、詳細ページ側の CLS も抑える。
+
+3. 検索モーダルで loading state と empty state が混ざる
+問題:
+- 検索 keyword 入力後、結果取得中にも「検索結果が見つかりませんでした」が表示されることがある。
+- これは実際に結果がない状態ではなく、API / Algolia response 待ちの loading 中に empty state を先に出している挙動とみられる。
+- ユーザーから見ると「結果なし」と誤認した直後に結果が出るため、検索体験として不安定。
+- 検索結果の a11y tree 上では、検索結果カードが image / text として見えており、link / button として明確に露出していなかった。
+- クリック可能な card だとしても、keyboard / screen reader 利用者には導線が伝わりにくい可能性がある。
+- 検索 input は type=search だが name / id がなく、Chrome issue として "A form field element should have an id or name attribute" が出ていた。
+
+対応:
+- query 変更直後は loading state を明示し、response が返るまでは empty state を表示しない。
+- empty state は `loading === false && hasSearched === true && results.length === 0` のときだけ表示する。
+- 検索結果カード全体を link にするか、少なくとも明確な button / link role と accessible name を付ける。
+- 検索 input に id / name / label 関連付けを追加する。
+- 結果件数を表示し、検索中 / 結果あり / 結果なし の 3 状態を UI 上で分離する。
+
+4. 検索の network / tracking が重い
+問題:
+- 検索モーダル操作時に Google Ads / Google CCM 系の form_start / form_submit request が多数発火していた。
+- 検索フォームが conversion form として自動計測されている可能性がある。
+- 以前の network 確認では、Algolia search response に検索結果表示以上の grade 情報や多言語 thumbnail が含まれていた。
+
+対応:
+- 検索フォームは conversion form 自動計測の対象から除外する。
+- Algolia index は検索結果表示専用に slim 化する。
+- 検索結果で必要な field は title, thumbnail(selected locale), price, total quantity, matched prize snippet 程度にする。
+- grade 全量や多言語 field は detail API 側へ寄せる。
+
+5. 認証系フォームの autocomplete / semantic が弱い
+問題:
+- ログインフォーム:
+  - email input は type=text
+  - password input は type=password
+  - autocomplete は空
+- 会員登録フォーム:
+  - email input は type=text
+  - password input は type=password
+  - autocomplete は空
+- パスワード再設定フォーム:
+  - email input は type=text
+  - autocomplete は空
+- ロゴリンクは a11y tree 上で accessible name が空だった。
+- 「パスワード再設定」などページタイトル相当のテキストが heading として露出していなかった。
+- 空 submit 時の validation message と focus 移動は機能していた。
+
+対応:
+- email input は type=email / autocomplete=email にする。
+- ログイン password は autocomplete=current-password にする。
+- 会員登録 password は autocomplete=new-password にする。
+- パスワード再設定の email も autocomplete=email にする。
+- ロゴリンクに aria-label または代替テキストを付ける。
+- ページタイトルは h1 として出す。
+
+6. お試しガチャ導線は機能するが、demo route でも third-party が重い
+問題:
+- お試しガチャ押下後、説明 modal が出て「ポイントは消費されず、商品の獲得はできません」と明示されていた。
+- 無料 1回ガチャを押すと /oripa/demo に遷移し、HLS の m3u8 と ts segment が読み込まれた。
+- demo route では GraphQL request は観測されず、demoGachaResult などを sessionStorage に持って結果画面へ進んでいた。
+- つまり demo は backend draw API に依存せず、client 側で完結している可能性が高い。
+- 一方で demo route でも GTM / Ads / Channel / Clarity などの third-party が動き、CORS / 503 / 403 / Uncaught error が出ていた。
+
+対応:
+- demo route は full-screen animation が主役なので、不要な third-party boot を抑える。
+- 特に channel.io など UI に不要なものは demo route では起動しない。
+- HLS 動画は押下後ロードでよいが、再生開始待ちを短くするなら modal 表示中に selected video の m3u8 だけ preload する。
+- demo result が client 完結であることは問題ではないが、本番 draw では結果生成と検証を必ず server 側に寄せる。
+
+Other Screens Priority
+1. relatedOripas の slim fragment 化
+2. 検索結果カードの semantic / a11y 修正
+3. 認証フォームの autocomplete / type 修正
+4. demo route の third-party 抑制
+5. 詳細ページ画像の priority / lazy load 整理

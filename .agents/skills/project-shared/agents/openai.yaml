@@ -1,4 +1,0 @@
-interface:
-  display_name: "プロジェクト共通"
-  short_description: "実装とレビューの共通ワークフロー"
-  default_prompt: "Use $project-shared to このリポジトリの共通 planning / implementation / review フローを適用する。"
