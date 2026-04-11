@@ -1,6 +1,6 @@
 # Working Context
 
-Last updated: 2026-04-11
+Last updated: 2026-04-12
 
 ## Purpose
 
@@ -19,14 +19,6 @@ repo-wide の前提と current truth は root docs に置き、skills は task-s
   - `.agents/skills/project-delivery/`
   - `.agents/skills/browser-analysis/`
   - `.agents/skills/ux-performance-audit/`
-
-## Recent Structural Decision
-
-- `project-shared` は廃止した。
-- 理由:
-  - repo-wide の前提や考え方は skill ではなく root docs で持つ方が自然。
-  - 実装系 workflow は `project-delivery` に分けた方が task routing が明確。
-  - `skills` は reusable な workflow surface として保ちたい。
 
 ## Update Rule
 
