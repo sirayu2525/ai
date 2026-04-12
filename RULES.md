@@ -4,7 +4,7 @@
 
 - 提案や編集に入る前に、依頼と関係するファイルを読む。
 - まず今回の依頼が相談、調査、設計、実装、レビューのどれかを切り分ける。
-- repo-wide の前提やルールを変えるときは、skill より先に `AGENTS.md` / `RULES.md` / `WORKING-CONTEXT.md` を更新する。
+- repo-wide の前提やルールを変えるときは、skill より先に `AGENTS.md` / `RULES.md` / `WORKING-CONTEXT.md` / `CONVENTIONS.md` を更新する。
 - skills は task-specific かつ reusable な workflow に絞る。
 - 前提、トレードオフ、残るリスクを明示する。
 - ユーザーの依頼内容と、適用した skill / pipeline の既定フローにズレがある場合は、その差分を出力で明示する。
@@ -22,6 +22,7 @@
   - repo-wide の前提
   - stable rules
   - current truth
+  - implementation / writing conventions
 - basic skills:
   - 再利用できる基本能力
   - 単一責務寄りの workflow

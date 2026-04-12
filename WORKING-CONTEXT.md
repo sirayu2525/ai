@@ -13,6 +13,7 @@ repo-wide の前提と current truth は root docs に置き、basic skills と 
   - `AGENTS.md`
   - `RULES.md`
   - `WORKING-CONTEXT.md`
+  - `CONVENTIONS.md`
 - Claude Code project memory:
   - `CLAUDE.md`
 - active basic skills:

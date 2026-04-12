@@ -2,7 +2,7 @@
 
 このリポジトリは、Claude Code と Codex で共有する AI scaffold。
 
-repo-wide の前提、考え方、判断基準はこのファイルと `RULES.md` / `WORKING-CONTEXT.md` に置く。  
+repo-wide の前提、考え方、判断基準はこのファイルと `RULES.md` / `WORKING-CONTEXT.md` / `CONVENTIONS.md` に置く。  
 `.agents/skills/` は再利用できる基本能力、`.agents/pipelines/` はよく使う依頼の組み合わせとして扱う。repo 全体の思想や current truth は root docs で持つ。
 
 ## Core Principles
@@ -20,6 +20,7 @@ repo-wide の前提、考え方、判断基準はこのファイルと `RULES.md
   - `AGENTS.md`
   - `RULES.md`
   - `WORKING-CONTEXT.md`
+  - `CONVENTIONS.md`
 - basic skills:
   - `.agents/skills/research/`
   - `.agents/skills/creation/`

@@ -5,7 +5,7 @@ Claude Code と Codex で共有する AI scaffold。
 ## この README について
 
 - この README は、人間がこの repo の構成と使い方を把握するための入口。
-- AI に対する repo-wide の前提やルールの正本は `README.md` ではなく `AGENTS.md` / `RULES.md` / `WORKING-CONTEXT.md` に置く。
+- AI に対する repo-wide の前提やルールの正本は `README.md` ではなく `AGENTS.md` / `RULES.md` / `WORKING-CONTEXT.md` / `CONVENTIONS.md` に置く。
 - `skills` は再利用できる基本能力、`pipelines` は人間が頼みやすいユースケースの入口として使う。
 
 ## まずどう依頼するか
@@ -68,7 +68,7 @@ Claude Code と Codex で共有する AI scaffold。
 
 1. まずセッション側の system / developer instructions を読む。
 2. repo の入口として `CLAUDE.md` を読む。
-3. `CLAUDE.md` から `AGENTS.md` / `RULES.md` / `WORKING-CONTEXT.md` を参照し、repo-wide の前提、rules、current truth を揃える。
+3. `CLAUDE.md` から `AGENTS.md` / `RULES.md` / `WORKING-CONTEXT.md` / `CONVENTIONS.md` を参照し、repo-wide の前提、rules、current truth、実装規約を揃える。
 4. ユーザーの依頼をユースケースとして捉え、近い pipeline があるかを見る。
 5. pipeline があれば、その pipeline が使う basic skill を読む。
 6. pipeline が合わなければ、basic skill を直接組み合わせる。
@@ -78,6 +78,7 @@ Claude Code と Codex で共有する AI scaffold。
 - `AGENTS.md`: repo-wide の前提、考え方、workflow surface policy を置く共通ファイル。
 - `RULES.md`: stable な rules を置く共通ファイル。
 - `WORKING-CONTEXT.md`: current truth と現在有効な構成情報を置く共通ファイル。
+- `CONVENTIONS.md`: 時刻の扱い、命名、実装・記述上の規約を置く共通ファイル。
 - `CLAUDE.md`: Claude Code 用の project memory。root docs を読み込む薄い入口にしている。
 - `.agents/skills/`: 再利用できる基本 skill 群。
 - `.agents/pipelines/`: よく使う依頼をまとめた入口。
@@ -100,7 +101,7 @@ Claude Code は `CLAUDE.md` を自動で読み込み、そこから `AGENTS.md` 
 
 ## この Scaffold の育て方
 
-- repo-wide の前提、rules、current truth は root docs に置く。
+- repo-wide の前提、rules、current truth、共通規約は root docs に置く。
 - 基本 skill は小さく再利用しやすい単位に保つ。
 - pipeline はよく使う依頼をまとめるが、root docs のルールを複製しない。
 - `SKILL.md` と `PIPELINE.md` は導線とワークフロー説明に集中させる。
