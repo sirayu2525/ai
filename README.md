@@ -86,18 +86,17 @@ Claude Code と Codex で共有する AI scaffold。
 
 ## 使い方
 
-### Claude Code
+### Claude Code のセットアップ
 
-Claude Code は `CLAUDE.md` を自動で読み込み、そこから `AGENTS.md` / `RULES.md` / `WORKING-CONTEXT.md` を参照する。
+- このリポジトリを Claude Code で開く。
+- Claude Code は `CLAUDE.md` を自動で読み込み、そこから `AGENTS.md` / `RULES.md` / `WORKING-CONTEXT.md` / `CONVENTIONS.md` を参照する。
+- ブラウザ調査を使う場合は、`.mcp.json` の project-scoped MCP 設定から `chrome-devtools` と `playwright` を使う。
 
-### Codex
+### Codex のセットアップ
 
-このリポジトリ内で Codex を起動する。Codex は root docs と `.agents/skills/` を併用する前提で、この repo の workflow surface を読む。ホームディレクトリへのインストールは不要。
-
-## MCP
-
-- Claude Code は `.mcp.json` から project-scoped MCP を読む。
-- Codex の MCP は repo スコープではなく user/global 設定になるため、`chrome-devtools` と `playwright` は global に登録してある。
+- このリポジトリ内で Codex を起動する。
+- Codex は root docs と `.agents/skills/` を併用する前提で、この repo の workflow surface を読む。
+- Codex の MCP は repo スコープではなく user/global 設定になるため、`chrome-devtools` と `playwright` は global に登録しておく。
 
 ## この Scaffold の育て方
 
